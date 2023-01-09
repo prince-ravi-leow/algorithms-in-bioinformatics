@@ -1,0 +1,594 @@
+---
+title: "Algo2022 Group 7 Data Visualisation"
+subtitle: Comparative study of PSSM, ANN, SMM for peptide MHC binding
+output:
+  html_notebook:
+    theme: spacelab
+    toc: yes
+    toc_float:
+      collapsed: no
+    toc_depth: 3
+  html_document:
+    toc: yes
+    toc_depth: '3'
+    df_print: paged
+---
+
+```{r message=FALSE, warning=FALSE, include=FALSE, setup, include=FALSE}
+knitr::opts_knit$set(root.dir = ".")
+```
+
+```{r load libraries, message=FALSE, include=FALSE}
+##Load libraries 
+#library(knitr)
+#library(kableExtra)
+library(tidyverse)
+library(ggridges)
+```
+
+```{r Define functions, include=FALSE}
+pcc_binder_plot_vanilla <- function(data, title){
+data %>% 
+  ggplot(
+    mapping = 
+      aes(x = `Number of binders`,
+          y = `PCC`) ) +
+  geom_point(size = 2) + 
+  ggtitle(title) + 
+  xlab("Number of binders") +
+  ylab("PCC") +
+  theme_classic()
+}
+
+pcc_size_plot_vanilla <- function(data, title){
+data %>% 
+  ggplot(
+    mapping = 
+      aes(x = `Size`,
+          y = `PCC`) ) +
+  geom_point(size = 2) + 
+  ggtitle(title) + 
+  xlab("Size") +
+  ylab("PCC") +
+  theme_classic()
+}
+
+pcc_binder_plot <- function(data, title){
+data %>% 
+  ggplot(
+    mapping = 
+      aes(x = `Number of binders`,
+          y = `PCC`,
+          colour = `Size`) ) +
+  geom_point(size = 2) + 
+  ggtitle(title) + 
+  xlab("Number of binders") +
+  ylab("PCC") +
+  theme_classic() + 
+  scale_color_gradient(low="blue", high="red",
+                       breaks=c(0,500,1000,1500,2000,2500,3000),
+                       limits=c(0,3000)) +
+  scale_x_continuous(breaks = seq(0, 1200, by = 100)) +
+  scale_y_continuous(breaks = c(0.0, 0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9)) 
+}
+
+pcc_size_plot <- function(data, title){
+data %>% 
+  ggplot(
+    mapping = 
+      aes(x = `Size`,
+          y = `PCC`, 
+          colour = `Number of binders`) ) +
+  geom_point(size = 2) + 
+  ggtitle(title) + 
+  xlab("Size") +
+  ylab("PCC") +
+  theme_classic() +
+  scale_color_gradient(low="blue", high="red", 
+                       breaks=c(0,250,500,750,1000,1250,1500),
+                       limits=c(0,1500)) +
+  scale_x_continuous(breaks = seq(0, 3500, by = 500)) +
+  scale_y_continuous(breaks = c(0.0, 0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9))
+}
+
+load_results <- function(data){
+  read_tsv(file = data, col_names = c("Allele","Size","PCC")) %>% 
+  mutate(`Number of binders` = count$`Number of binders`)
+}
+```
+
+# Dataset statistics
+
+```{r Load count, echo=FALSE}
+# Load and clean count dataframe
+count <- read.delim(file = "./data/count.txt", header = TRUE, sep = "", col.names = c("Allele", "Size", "Number of binders")) %>% 
+  mutate(`Number of binders` = `Number.of.binders`) %>% 
+  select(-`Number.of.binders`)
+count
+median(count$`Number of binders`)
+```
+
+## No. binders vs size
+
+The number of binders clearly scales linearly with the size of the dataset.
+
+```{r No. binders vs Size, echo=FALSE, message=FALSE, warning=FALSE}
+count %>% 
+  ggplot(
+    mapping = 
+      aes(x = `Number of binders`,
+          y = `Size`) ) +
+  geom_point(size = 2) +
+  geom_smooth(method='lm') +
+  ggtitle("Size vs Number of binders") + 
+  xlab("Number of binders") +
+  ylab("Size") +
+  theme_classic() 
+
+ggsave("plots/size_no_binders.png", width = 5.5, height = 4)
+```
+
+**PCC Size vs no. binders**
+
+```{r linear regression, echo=FALSE}
+cor(count$Size, count$`Number of binders`)
+```
+
+# PSSM
+
+**Beta = 100, weighting on**
+
+```{r PSSM Data wrangling, include=FALSE}
+PSSM_original <- load_results(data = "./results/PSSM_results.txt")
+```
+
+```{r PSSM PCC vs no. binders, echo=FALSE}
+pcc_binder_plot(PSSM_original,title="PSSM PCC vs Number of binders")
+ggsave("./plots/PSSM_PCC_binders.png", width = 5.5, height = 4)
+```
+
+```{r PSSM PCC vs Size, echo=FALSE}
+pcc_size_plot(PSSM_original,title="PSSM PCC vs Size")
+ggsave("./plots/PSSM_PCC_size.png", width = 5.5, height = 4)
+```
+
+## Assessing optimal beta
+
+```{r PSSM second batch data wrangling, include=FALSE}
+PSSM_beta_50 <- load_results("results/PSSM_results_50.txt")
+PSSM_beta_70 <- load_results("results/PSSM_results_70.txt")
+PSSM_beta_100 <- load_results("results/PSSM_results_100.txt")
+PSSM_beta_150 <- load_results("results/PSSM_results_150.txt")
+PSSM_beta_200 <- load_results("results/PSSM_results_200.txt")
+```
+
+```{r PSSM beta overlayed wrangling, message=FALSE, include=FALSE}
+PSSM_beta_50_merge <- PSSM_beta_50 %>% mutate(`Beta` = "50") %>% select(`Number of binders`, `Size`, `PCC`, `Beta`)
+PSSM_beta_70_merge <- PSSM_beta_70 %>% mutate (`Beta` = "70") %>% select(`Number of binders`, `Size`, `PCC`, `Beta`)
+PSSM_beta_100_merge <- PSSM_beta_100 %>% mutate (`Beta` = "100") %>% select(`Number of binders`, `Size`, `PCC`, `Beta`)
+PSSM_beta_150_merge <- PSSM_beta_150 %>% mutate (`Beta` = "150") %>% select(`Number of binders`, `Size`, `PCC`, `Beta`)
+PSSM_beta_200_merge <- PSSM_beta_200 %>% mutate (`Beta` = "200") %>% select(`Number of binders`, `Size`, `PCC`, `Beta`)
+
+PSSM_merge_list <- list(PSSM_beta_50_merge, PSSM_beta_70_merge, PSSM_beta_100_merge, PSSM_beta_150_merge, PSSM_beta_200_merge)
+
+PSSM_merge <- PSSM_merge_list %>% reduce(full_join)
+```
+
+From the graphs, PCC performance between beta values is minimal.
+
+```{r PSSM beta overlayed vis no binders, echo=FALSE, message=FALSE}
+ggplot(data = PSSM_merge,
+    mapping = 
+      aes(x = `Number of binders`,
+          y = `PCC`,
+          colour = `Beta`)) +
+  geom_point(size = 2) +
+  scale_color_brewer(palette = "Set1") +
+  xlab("Number of binders") +
+  ylab("PCC") +
+  theme_classic() + 
+  ggtitle(label = "PSSM PCC vs Number of binders",
+          subtitle = "Varying beta (weight on prior)") +
+  scale_x_continuous(breaks = seq(0, 1200, by = 100)) +
+  scale_y_continuous(breaks = c(0.0, 0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9))
+```
+
+```{r PSSM beta overlayed wrangling vis size, echo=FALSE, message=FALSE}
+ggplot(data = PSSM_merge,
+    mapping = 
+      aes(x = `Size`,
+          y = `PCC`,
+          colour = `Beta`)) +
+  geom_point(size = 2) +
+  scale_color_brewer(palette = "Set1") +
+  xlab("Size") +
+  ylab("PCC") +
+  theme_classic() + 
+  ggtitle(label = "PSSM PCC vs Size",
+          subtitle = "Varying beta (weight on prior)") +
+  scale_x_continuous(breaks = seq(0, 3500, by = 500)) +
+  scale_y_continuous(breaks = c(0.0, 0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9))
+```
+
+# SMM
+
+## SMM: Gradient descent
+
+**Lambda = 0.01, epsilon = 0.05, epochs = 100 (doesn't make a difference).**</br> ***Lambda = 1 gave optimum results, so those values are used in the final comparison***
+
+```{r SMM data wrangling, include=FALSE}
+SMM_GD_original <- load_results("results/SMM_results.txt")
+```
+
+```{r SMM PCC vs no. binders, echo=FALSE, message=FALSE, warning=FALSE}
+pcc_binder_plot(SMM_GD_original,title="SMM (Gradient descent) PCC vs Number of binders")
+ggsave("./plots/SMM_GD_PCC_binders.png", width = 5.5, height = 4)
+```
+
+```{r SMM PCC vs Size, echo=FALSE}
+pcc_size_plot(SMM_GD_original,title="SMM (Gradient descent) PCC vs Size")
+ggsave("./plots/SMM_GD_size.png", width = 5.5, height = 4)
+```
+
+### Optimising lambda
+
+```{r SMM GD vary lambda data wrangling, message=FALSE, include=FALSE}
+SMM_GD_l_001 <- load_results("results/SMM_results_0.01.txt") %>% mutate(`Lambda` = "0.01") %>% select(`Number of binders`, `Size`, `PCC`, `Lambda`)
+SMM_GD_l_01 <- load_results("results/SMM_results_0.1.txt") %>% mutate(`Lambda` = "0.1") %>% select(`Number of binders`, `Size`, `PCC`, `Lambda`)
+SMM_GD_l_1 <- load_results("results/SMM_results_1.txt") %>% mutate(`Lambda` = "1") %>% select(`Number of binders`, `Size`, `PCC`, `Lambda`)
+SMM_GD_l_5 <- load_results("results/SMM_results_5.txt") %>% mutate(`Lambda` = "5") %>% select(`Number of binders`, `Size`, `PCC`, `Lambda`)
+SMM_GD_l_10 <- load_results("results/SMM_results_10.txt") %>% mutate(`Lambda` = "10") %>% select(`Number of binders`, `Size`, `PCC`, `Lambda`)
+
+SMM_GD_l_list <- list(SMM_GD_l_001, SMM_GD_l_01, SMM_GD_l_1, SMM_GD_l_5, SMM_GD_l_10)
+SMM_GD_l_merge <- SMM_GD_l_list %>% reduce(full_join)
+```
+
+```{r SMM GD vary lambda overlay PCC vs Number of Binders, echo=FALSE}
+ggplot(data = SMM_GD_l_merge,
+    mapping = 
+      aes(x = `Number of binders`,
+          y = `PCC`,
+          colour = `Lambda`)) +
+  geom_point() +
+  scale_color_brewer(palette = "Set1") +
+  xlab("Number of binders") +
+  ylab("PCC") +
+  theme_classic() + 
+  ggtitle(label = "SMM GD PCC vs Number of binders",
+          subtitle = "Varying lambda (Cost function)") +
+  scale_x_continuous(breaks = seq(0, 1200, by = 100)) +
+  scale_y_continuous(breaks = c(0.0, 0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9))
+```
+
+```{r SMM GD vary lambda overlay PCC vs Size, echo=FALSE}
+ggplot(data = SMM_GD_l_merge,
+    mapping = 
+      aes(x = `Size`,
+          y = `PCC`,
+          colour = `Lambda`)) +
+  geom_point() +
+  scale_color_brewer(palette = "Set1") +
+  xlab("Size") +
+  ylab("PCC") +
+  theme_classic() + 
+  ggtitle(label = "SMM GD PCC vs Size",
+          subtitle = "Varying lambda (Cost function)") +
+  scale_x_continuous(breaks = seq(0, 3500, by = 500)) +
+  scale_y_continuous(breaks = c(0.0, 0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9))
+```
+
+### Assessment of lambda
+
+1 has best overall performance - by graph, and it has highest average. </br>
+
+```{r average lambda PCC, echo=FALSE}
+SMM_GD_l_001 %>% select(`PCC`) %>% summarise(`Lambda = 0.01 mean PCC` = mean(PCC))
+SMM_GD_l_01 %>% select(`PCC`) %>% summarise(`Lambda = 0.1 mean PCC` = mean(PCC))
+SMM_GD_l_1 %>% select(`PCC`) %>% summarise(`Lambda = 1 mean PCC` = mean(PCC))
+SMM_GD_l_5 %>% select(`PCC`) %>% summarise(`Lambda = 5 mean PCC` = mean(PCC))
+SMM_GD_l_10 %>% select(`PCC`) %>% summarise(`Lambda = 10 mean PCC` = mean(PCC))
+```
+
+```{=html}
+<!-- This this last section was an attempt to run with increased number of epochs (100 -> 1000), @ lambda = 1. The results was exactly the same - evidenced by the fact that a composite graph simply overlayed the points over each other, and the average PCC was identical. 
+The ideal would have been to vary epsilon instead, but we declined partially due to time constraints, and due to the fact that even with increased performance, most likely it wouldn't be able to match ANN.  -->
+```
+```{r SMM GD l 1 i 1000, eval=FALSE, include=FALSE}
+SMM_GD_l_1_i_1000 <- load_results("results/SMM_gd_i_1000_l_1.txt")
+```
+
+```{r SMM_GD optimised PCC vs Number of binders, eval=FALSE, include=FALSE}
+pcc_binder_plot(SMM_GD_l_1_i_1000, NULL) + ggtitle(label = "SMM GD PCC vs Number of binders", subtitle = "Lambda = 1, Epochs = 1000")
+```
+
+```{r SMM_GD optimised PCC vs Size, eval=FALSE, include=FALSE}
+pcc_size_plot(SMM_GD_l_1_i_1000, NULL) + ggtitle(label = "SMM GD PCC vs Size", subtitle = "Lambda = 1, Epochs = 1000")
+```
+
+```{r SMM_GD optimised PCC mean, eval=FALSE, include=FALSE}
+SMM_GD_l_1_i_1000 %>% select(`PCC`) %>% summarise(`Lambda = 1, epochs = 1000 mean PCC` = mean(PCC))
+```
+
+```{r SMM_GD plot, eval=FALSE, include=FALSE}
+
+SMM_GD_l_1_i_1000_merge <- SMM_GD_l_1_i_1000 %>% mutate (`Parameters` = "l = 1, i = 1000") %>% select(`Number of binders`, `Size`, `PCC`, `Parameters`)
+
+SMM_GD_original_merge <- SMM_GD_l_1 %>% mutate (`Parameters` = "l = 1, i  = 100") %>% select(`Number of binders`, `Size`, `PCC`, `Parameters`)
+
+SMM_GD_overlay_plot <- full_join(SMM_GD_l_1_i_1000_merge, SMM_GD_original_merge)
+
+pcc_binder_plot_vanilla(SMM_GD_overlay_plot, NULL) + ggtitle(label = "SMM GD PCC vs Number of binders", subtitle = "Epochs 100 and 1000 overlayed")
+
+pcc_size_plot_vanilla(SMM_GD_overlay_plot, NULL) + ggtitle(label = "SMM GD PCC vs Size", subtitle = "Epochs 100 and 1000 overlayed")
+
+SMM_GD_overlay_plot %>% 
+  ggplot(
+    mapping = 
+      aes(
+        x = `Number of binders`,
+        y = `PCC`,
+        colour = `Parameters`)) + 
+  geom_point()
+```
+
+## SMM: Monte Carlo
+
+**Lambda = 0.01, Epochs = 1000 ; no optimisations made**
+
+```{r MC data wrangling, include=FALSE}
+MC_original <- load_results("results/MC_results.txt") #%>% View()
+```
+
+```{r MC PCC vs no. binders, echo=FALSE}
+pcc_binder_plot_vanilla(MC_original,title="SMM (Monte Carlo) PCC vs Number of binders") +
+  scale_x_continuous(breaks = seq(0, 1200, by = 100)) +
+  scale_y_continuous(breaks = c(0.0, 0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9))
+ggsave("./plots/SMM_MC_PCC_binders.png", width = 5.5, height = 4)
+```
+
+```{r MC PCC vs Size, echo=FALSE}
+pcc_size_plot_vanilla(MC_original,title="SMM (Monte Carlo) PCC vs Size")  +
+  scale_x_continuous(breaks = seq(0, 3500, by = 500)) +
+  scale_y_continuous(breaks = c(0.0, 0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9))
+ggsave("./plots/SMM_MC_PCC_size.png", width = 5.5, height = 4)
+```
+
+# ANN
+
+**Originally run with BLOSUM encoding - sparse coding was later found to be inferior, so the final comparisons are used with BLOSUM encoding**
+
+```{r ANN data wrangling, include=FALSE, echo=FALSE}
+ANN_original <- load_results("results/ANN_results.txt")
+```
+
+```{r ANN PCC vs no. binders, echo=FALSE}
+pcc_binder_plot(ANN_original,title="ANN PCC vs Number of binders")
+ggsave("./plots/ANN_PCC_binder.png", width = 5.5, height = 4)
+```
+
+```{r ANN PCC vs Size, echo=FALSE}
+pcc_size_plot(ANN_original,title="ANN PCC vs Size")
+ggsave("./plots/ANN_PCC_size.png", width= 5.5, height = 4)
+```
+
+## BLOSUM vs Sparse encoding
+
+```{r ANN sparse encoding data wrangling, include=FALSE}
+ANN_sparse <- load_results("results/ANN_sp_results_project.txt")
+```
+
+<!-- Had separate graphs at first, decided to go with composite graph. -->
+
+```{r ANN sparse encoding PCC vs Number of binders, include=FALSE}
+# pcc_binder_plot(ANN_sparse, title = "ANN (sparse encoding) PCC vs Number of binders")
+```
+
+```{r ANN sparse encoding PCC vs Size, include=FALSE}
+# pcc_size_plot(ANN_sparse, title = "ANN (sparse encoding) PCC vs Size")
+```
+
+```{r ANN BLOSUM vs Sparse wrangling for vis, message=FALSE, include=FALSE}
+ANN_original_merge <- ANN_original %>% mutate(`Encoding` = "BLOSUM") %>% select(`Number of binders`, `Size`, `PCC`, `Encoding`)
+ANN_sparse_merge <- ANN_sparse %>% mutate(`Encoding` = "Sparse") %>% select(`Number of binders`, `Size`, `PCC`, `Encoding`)
+ANN_merge <- full_join(ANN_original_merge, ANN_sparse_merge)
+```
+
+```{r ANN overlay no binders, echo=FALSE}
+ggplot(data = ANN_merge,
+    mapping = 
+      aes(x = `Number of binders`,
+          y = `PCC`,
+          colour = `Encoding`)) +
+  geom_point(size = 2) +
+  xlab("Number of binders") +
+  ylab("PCC") +
+  theme_classic() + 
+  ggtitle(label = "ANN PCC vs Number of binders",
+          subtitle = "BLOSUM encoding vs Sparse encoding") +
+  scale_x_continuous(breaks = seq(0, 1200, by = 100)) +
+  scale_y_continuous(breaks = c(0.0, 0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9))
+```
+
+```{r ANN overlay size, echo=FALSE}
+ggplot(data = ANN_merge,
+    mapping = 
+      aes(x = `Size`,
+          y = `PCC`,
+          colour = `Encoding`)) +
+  geom_point(size = 2) +
+  xlab("Size") +
+  ylab("PCC") +
+  theme_classic() + 
+  ggtitle(label = "ANN PCC vs Size",
+          subtitle = "BLOSUM encoding vs Sparse encoding") +
+  scale_x_continuous(breaks = seq(0, 3500, by = 500)) +
+  scale_y_continuous(breaks = c(0.0, 0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9))
+```
+
+```{r Average BLOSUM vs sparse}
+ANN_original %>% select(PCC) %>% summarise(`BLOSUM mean PCC` = mean(PCC)) %>% round(3)
+ANN_sparse %>% select(PCC) %>% summarise(`sparse mean PCC` = mean(PCC)) %>% round(3)
+```
+
+# Comparing all results
+
+**ALL results are compared using the optimal parameters.** </br>
+
+**PSSM: beta = 100** - beta had no significant on performance, so we just use the original beta value </br> **SMM GD: lambda = 1, epsilon = 0.05, epochs = 100** - optimised, from lambda 0.01 originally </br> **SMM MC: lambda = 0.01, epochs = 1000** </br> **ANN: BLOSUM encoding** </br>
+
+## Average PCC
+
+```{r average PCC, echo=FALSE}
+Av_PSSM <- PSSM_original %>% select(PCC) %>% summarise(`PSSM mean PCC` = mean(PCC)) %>% round(3)
+Av_SMM_GD <- SMM_GD_l_1 %>% select(PCC) %>% summarise(`GD mean PCC` = mean(PCC)) %>% round(3)
+Av_MC <- MC_original %>% select(PCC) %>% summarise(`MC mean PCC` = mean(PCC)) %>% round(3)
+Av_ANN <- ANN_original %>% select(PCC) %>% summarise(`ANN mean PCC` = mean(PCC)) %>% round(3)
+
+Av_performance <- c(Av_PSSM, Av_SMM_GD, Av_MC, Av_ANN) %>% as_tibble() 
+Av_performance
+```
+
+## Max PCC
+
+```{r max PCC, echo=FALSE}
+Max_PSSM <- PSSM_original %>% select(PCC) %>% summarise(`PSSM max PCC` = max(PCC)) %>%  round(3)
+Max_SMM_GD <- SMM_GD_l_1 %>% select(PCC) %>% summarise(`GD max PCC` = max(PCC)) %>% round(3)
+Max_MC <- MC_original %>% select(PCC) %>% summarise(`MC max PCC` = max(PCC)) %>% round(3)
+Max_ANN <- ANN_original %>% select(PCC) %>% summarise(`ANN max PCC` = max(PCC)) %>% round(3)
+
+c(Max_PSSM, Max_SMM_GD, Max_MC, Max_ANN) %>% as_tibble()
+```
+
+## Negative PCC values
+
+```{r number of negative values, include=FALSE}
+PSSM_original %>% select(`PCC`) %>% mutate(`Negative` = case_when(`PCC`> 0 ~ 0,`PCC`< 0 ~ 1)) %>% summarise(`No. negatives in PSSM` = sum(`Negative`)) 
+SMM_GD_original %>% select(`PCC`) %>% mutate(`Negative` = case_when(`PCC` > 0 ~ 0,`PCC` < 0 ~ 1)) %>% summarise(`No. negatives in GD` = sum(`Negative`))
+MC_original %>% select(`PCC`) %>% mutate(`Negative` = case_when(`PCC` > 0 ~ 0,`PCC` < 0 ~ 1)) %>% summarise(`No. negatives in MC` = sum(`Negative`))
+ANN_original%>% select(`PCC`) %>% mutate(`Negative` = case_when(`PCC` > 0 ~ 0,`PCC`< 0 ~ 1)) %>% summarise(`No. negatives in MC` = sum(`Negative`))
+```
+
+3 negative values in PSSM and MC. </br> Interestingly enough, there are 3 different allele in each case. </br>
+
+**PSSM**
+
+```{r Negative Alleles PSSM, echo=FALSE}
+PSSM_original %>% mutate(`Negative` = case_when(`PCC`> 0 ~ 0,`PCC`< 0 ~ 1)) %>% filter(`Negative` == 1) %>% select(-`Negative`)
+```
+
+**MC**
+
+```{r Negative Alleles MC, echo=FALSE}
+MC_original %>% mutate(`Negative` = case_when(`PCC` > 0 ~ 0,`PCC` < 0 ~ 1)) %>% filter(`Negative` == 1) %>% select(-`Negative`)
+```
+
+## Visualise performance for ALL methods
+
+```{r visualise performance, echo=FALSE, message=FALSE, warning=FALSE}
+Denseplot_PSSM <- PSSM_original %>% select(`Number of binders`, `Size`, `PCC`) %>% mutate(`Method` = "PSSM")
+Denseplot_SMM_GD <- SMM_GD_l_1 %>% select(`Number of binders`, `Size`, `PCC`) %>% mutate(`Method` = "SMM GD")
+Denseplot_MC <- MC_original %>% select(`Number of binders`, `Size`, `PCC`) %>% mutate(`Method` = "SMM MC")
+Denseplot_ANN <- ANN_original %>% select(`Number of binders`, `Size`, `PCC`) %>% mutate(`Method` = "ANN")
+
+Denseplot_merge_list <- list(Denseplot_PSSM, Denseplot_SMM_GD, Denseplot_MC, Denseplot_ANN)
+
+Denseplot_MEGA_list <- Denseplot_merge_list %>% reduce(full_join)
+  
+Denseplot_MEGA_list %>% 
+  ggplot(
+    mapping = 
+           aes(x = `PCC`,
+               fill = `Method`,
+               colour = `Size`)) +
+    geom_density(bins = 70,
+               alpha = 0.5) +
+  theme_classic() +
+  scale_x_continuous(breaks = seq(0.0, 1.0, by = 0.1)) + 
+  ggtitle(label = "PCC performance between all methods") 
+  # scale_color_gradient(low="blue", high="red",
+  #                      breaks=c(0,500,1000,1500,2000,2500,3000),
+  #                      limits=c(0,3000))
+ggsave("./plots/Denseplot_all_method.png", width = 5.5, height = 4)
+```
+
+**Alternate plot (ridgeline)**
+
+```{r ridgeline plot, echo=FALSE}
+Denseplot_MEGA_list %>% 
+  ggplot(mapping = 
+           aes(x = `PCC`,
+               y = `Method`,
+               fill = `Method`)) + 
+  geom_density_ridges(alpha = 0.7) + 
+  theme_classic() +
+  ggtitle(label = "PCC performance between all methods")
+# + 
+  # scale_fill_viridis(discrete = TRUE)  
+
+ggsave("./plots/Ridgeplot_all_method.png", width = 5.5, height = 4)
+```
+
+## Visualising PCC vs Size and Number of binders for all methods
+
+```{r echo=FALSE, message=FALSE, warning=FALSE}
+Denseplot_MEGA_list %>% 
+  ggplot(mapping = 
+           aes(x = `Number of binders`,
+               y = `PCC`,
+               colour = `Method`)) + 
+  # geom_density_ridges(alpha = 0.7) +
+  # geom_line(alpha = 0.7) +
+  geom_point(size = 2,
+             alpha = 0.7) +
+  # geom_line() +
+  # geom_point() + 
+  theme_classic() + 
+  ggtitle(label = "PCC vs Number of binders for all methods")
+ggsave("./plots/PCC_binders_ALL_methods.png", width = 5.5, height = 4)
+```
+
+```{r echo=FALSE, message=FALSE, warning=FALSE}
+Denseplot_MEGA_list %>% 
+  ggplot(mapping = 
+           aes(x = `Size`,
+               y = `PCC`,
+               colour = `Method`)) + 
+  # geom_density_ridges(alpha = 0.7) +
+  geom_point(size = 2,
+             alpha = 0.7) +
+  # geom_line() +
+  # geom_point() + 
+  theme_classic() + 
+  ggtitle(label = "PCC vs Size for all methods")
+ggsave("./plots/PCC_size_ALL_methods.png", width = 5.5, height = 4)
+```
+## Exploring the size categories and average performance between them
+```{r EDA Size categories, echo=FALSE}
+Denseplot_MEGA_list %>% 
+  select(c(Method, `Number of binders`, PCC)) %>% 
+  mutate(`Category` = case_when(`Number of binders` < 300 ~ "Small",
+                                300 < `Number of binders` & `Number of binders` < 700 ~ "Medium",
+                                `Number of binders` > 700 ~ "Maximum" )) %>% 
+  select(-`Number of binders`) -> Dense_category 
+
+count %>% 
+mutate(`Category` = case_when(`Number of binders` < 300 ~ "Small",
+                                300 < `Number of binders` & `Number of binders` < 700 ~ "Medium",
+                                `Number of binders` > 700 ~ "Maximum" )) -> Size_categories 
+
+Size_categories %>% filter(Category == "Small") #26
+Size_categories %>% filter(Category == "Medium") #8
+
+Dense_category %>% filter(Method == "PSSM" & Category == "Small") %>% summarise(`PSSM small` = mean(PCC))
+Dense_category %>% filter(Method == "PSSM" & Category == "Medium") %>% summarise(`PSSM medium` = mean(PCC))
+
+Dense_category %>% filter(Method == "SMM GD" & Category == "Small") %>% summarise(`SMM GD small` = mean(PCC))
+Dense_category %>% filter(Method == "SMM GD" & Category == "Medium") %>% summarise(`SMM GD medium` = mean(PCC))
+
+Dense_category %>% filter(Method == "SMM MC" & Category == "Small") %>% summarise(`SMM MC small` = mean(PCC))
+Dense_category %>% filter(Method == "SMM MC" & Category == "Medium") %>% summarise(`SMM MC medium` = mean(PCC))
+
+Dense_category %>% filter(Method == "ANN" & Category == "Small") %>% summarise(`ANN small` = mean(PCC))
+Dense_category %>% filter(Method == "ANN" & Category == "Medium") %>% summarise(`ANN medium` = mean(PCC))
+
+```
