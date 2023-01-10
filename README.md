@@ -14,7 +14,7 @@ The `Orignal` directory contains the raw performance text-printouts for each met
 The `plots` directory contains all the plots generated as part of the data analysis and final project report. 
 
 *Example:*
-![Ridgeline plot all methods](https://raw.githubusercontent.com/prince-ravi-leow/algorithms-in-bioinformatics/master/plots/Ridgeplot_all_method.png =500x500)
+![Ridgeline plot all methods](https://raw.githubusercontent.com/prince-ravi-leow/algorithms-in-bioinformatics/master/plots/Ridgeplot_all_method.png)
 ## Data
 The `data` directory contains important metadata for the actual dataset the algorithms were trained on. 
 
