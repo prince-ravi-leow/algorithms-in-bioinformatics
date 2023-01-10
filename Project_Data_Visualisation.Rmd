@@ -1,17 +1,9 @@
 ---
-title: "Algo2022 Group 7 Data Visualisation"
-subtitle: Comparative study of PSSM, ANN, SMM for peptide MHC binding
+title: "Comparative study of PSSM, ANN, SMM for peptide MHC binding"
 output:
-  html_notebook:
-    theme: spacelab
+  pdf_document:
     toc: yes
-    toc_float:
-      collapsed: no
     toc_depth: 3
-  html_document:
-    toc: yes
-    toc_depth: '3'
-    df_print: paged
 ---
 
 ```{r message=FALSE, warning=FALSE, include=FALSE, setup, include=FALSE}
@@ -20,8 +12,6 @@ knitr::opts_knit$set(root.dir = ".")
 
 ```{r load libraries, message=FALSE, include=FALSE}
 ##Load libraries 
-#library(knitr)
-#library(kableExtra)
 library(tidyverse)
 library(ggridges)
 ```

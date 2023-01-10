@@ -5,7 +5,9 @@ This data analysis will explore the prediction performance of different bioinfor
 
 # Contents
 ## Code
-The entire data analysis was conducted in the `R` programming language, and is contained within the `.Rmd` (RMarkdown file). However for a more interactive experience, I would recommend viewing the exported `.html`. It contains clickable bookmarks for easier navigation, the ability to hide and show corresponding code, and is generally easier on the eyes.   
+The entire data analysis was conducted in the `R` programming language, and is contained within the `.Rmd` (RMarkdown file). 
+
+To view the outputs and results of the data analysis with no code, I would recommend viewing the exported `Project_Data_Visualisation.pdf`.   
 ## Results & Plots 
 The `results` directory contains the performance measurements for all methods, with the first column representing protein ID's, second column representing the size of the dataset, and the third column representing the performance measured via Pearson Correlation Coefficient (PCC).
 
