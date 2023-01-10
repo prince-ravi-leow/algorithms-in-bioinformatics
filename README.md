@@ -11,7 +11,7 @@ To view the outputs and results of the data analysis with no code, I would recom
 ## Results & Plots 
 The `results` directory contains the performance measurements for all methods, with the first column representing protein ID's, second column representing the size of the dataset, and the third column representing the performance measured via Pearson Correlation Coefficient (PCC).
 
-The `Orignal` directory contains the raw performance text-printouts for each method, which had to be transformed, prior to them being loaded for the data analysis. The bash scripts written to achieve this, are also included in the  
+The `Orignal` directory contains the raw performance text-printouts for each method, which had to be transformed, prior to them being loaded for the data analysis. The bash scripts written to achieve this, are also included in this directory.
 
 The `plots` directory contains all the plots generated as part of the data analysis and final project report. 
 
@@ -20,7 +20,7 @@ The `plots` directory contains all the plots generated as part of the data analy
 ## Data
 The `data` directory contains important metadata for the actual dataset the algorithms were trained on. 
 
-The dataset itself is unfortunately not in the public domain, and for more information on the I would encourage the reader to skim the Abstract of the `ProjectReport.pdf`.
+For more information on the original dataset being evaluated, I would encourage the reader to skim the Abstract of the `ProjectReport.pdf`.
 
 # Acknowledgements
 While I was solely responsible for all the data analysis demonstrated in this repository, I would like to acknowledge and thank my group members Adikrishna Murali Mohan and Baris Kara, who aided me greatly in understanding the algorithms, the group exercises, and writing the final project for this course. I couldn't have done it without you guys. ❤️ 
