@@ -1,5 +1,5 @@
 # Introduction
-This repository contains a curated data analysis, conducted as part of the bioinformatics-focused master’s course, (Algorithms in Bioinformatics](https://kurser.dtu.dk/course/2021-2022/22125?menulanguage=en), taken in the summer of 2022, at the Technical University of Denmark (DTU).
+This repository contains a curated data analysis, conducted as part of the bioinformatics-focused master’s course, [Algorithms in Bioinformatics](https://kurser.dtu.dk/course/2021-2022/22125?menulanguage=en), taken in the summer of 2022, at the Technical University of Denmark (DTU).
 
 This data analysis will explore the prediction performance of different bioinformatics algorithms. For more details on the algorithms and the data they were trained on, please refer to the attached `ProjectReport.pdf`, that was submitted as part of the course.
 
