@@ -11,8 +11,10 @@ The `results` directory contains the performance measurements for all methods, w
 
 The `Orignal` directory contains the raw performance text-printouts for each method, which had to be transformed, prior to them being loaded for the data analysis. The bash scripts written to achieve this, are also included in the  
 
-The `plots` directory contains all the plots generated as part of the data analysis and final project report - some of which are quite pretty, if I do say so myself. 😏 
-![Denseplot](https://raw.githubusercontent.com/prince-ravi-leow/algorithms-in-bioinformatics/master/plots/ANN_PCC_binder.png)
+The `plots` directory contains all the plots generated as part of the data analysis and final project report. 
+
+*Example:*
+![Ridgeline plot all methods](https://raw.githubusercontent.com/prince-ravi-leow/algorithms-in-bioinformatics/master/plots/Ridgeplot_all_method.png =500x500)
 ## Data
 The `data` directory contains important metadata for the actual dataset the algorithms were trained on. 
 
