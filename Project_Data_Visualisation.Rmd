@@ -1,5 +1,6 @@
 ---
-title: "Comparative study of PSSM, ANN, SMM for peptide MHC binding"
+title: "Comparitive study on prediction power of PSSM, SMM, and ANN"
+subtitle: "Results Analysis & Visualisation"
 output:
   pdf_document:
     toc: yes
@@ -11,7 +12,6 @@ knitr::opts_knit$set(root.dir = ".")
 ```
 
 ```{r load libraries, message=FALSE, include=FALSE}
-##Load libraries 
 library(tidyverse)
 library(ggridges)
 ```
@@ -87,22 +87,30 @@ load_results <- function(data){
 }
 ```
 
-# Dataset statistics
+\newpage
 
+# 1) Introduction
+In this results analysis & visualisation, we will compare the results for 3 types of algorithms, for predicting binding motifs in MHC Class I proteins. Performance in this case is measured with PCC (Pearson Correlation Coefficient) - that is, the discrepancy between predicted motifs' binding coefficient, vs the actual binding coefficient. <br>
+
+We also attempted to optimise algorithm parameters, achieve the highest performance for each method. These will also be evaluated in each algorithms' respective section.  <br>
+
+**For a nice summary of the results, skip to the final 'Comparison' and 'Meta-study' sections.**
+
+# 2) Dataset statistics
+In addition to the actual protein sequences, an accompanying dataset called `count` was included, which includes protein ID's, along with their respective alleles, and number of binders. There are 35 alleles in total, here the first 6 are displayed.
 ```{r Load count, echo=FALSE}
 # Load and clean count dataframe
 count <- read.delim(file = "./data/count.txt", header = TRUE, sep = "", col.names = c("Allele", "Size", "Number of binders")) %>% 
   mutate(`Number of binders` = `Number.of.binders`) %>% 
   select(-`Number.of.binders`)
-count
-median(count$`Number of binders`)
+head(count)
 ```
 
-## No. binders vs size
+## 2.1 No. binders vs size
 
 The number of binders clearly scales linearly with the size of the dataset.
 
-```{r No. binders vs Size, echo=FALSE, message=FALSE, warning=FALSE}
+```{r No. binders vs Size, fig.height = 4, fig.width = 5.5, echo=FALSE, message=FALSE, warning=FALSE}
 count %>% 
   ggplot(
     mapping = 
@@ -118,41 +126,20 @@ count %>%
 ggsave("plots/size_no_binders.png", width = 5.5, height = 4)
 ```
 
-**PCC Size vs no. binders**
+While this study is mainly about the prediction power of different algorithms, a small meta-study will be conducted, to determine how the dataset size (i.e. size of the protein allele) affects performance. <br>
 
-```{r linear regression, echo=FALSE}
-cor(count$Size, count$`Number of binders`)
-```
-
-# PSSM
-
-**Beta = 100, weighting on**
-
-```{r PSSM Data wrangling, include=FALSE}
-PSSM_original <- load_results(data = "./results/PSSM_results.txt")
-```
-
-```{r PSSM PCC vs no. binders, echo=FALSE}
-pcc_binder_plot(PSSM_original,title="PSSM PCC vs Number of binders")
-ggsave("./plots/PSSM_PCC_binders.png", width = 5.5, height = 4)
-```
-
-```{r PSSM PCC vs Size, echo=FALSE}
-pcc_size_plot(PSSM_original,title="PSSM PCC vs Size")
-ggsave("./plots/PSSM_PCC_size.png", width = 5.5, height = 4)
-```
-
-## Assessing optimal beta
-
-```{r PSSM second batch data wrangling, include=FALSE}
+\newpage
+# 3) Position-Specific Scoring Matrix (PSSM) 
+## 3.1 Optimising beta
+```{r Load & Wrangle PSSM results, include=FALSE}
+#Load
+PSSM_original <- load_results("./results/PSSM_results.txt")
 PSSM_beta_50 <- load_results("results/PSSM_results_50.txt")
 PSSM_beta_70 <- load_results("results/PSSM_results_70.txt")
 PSSM_beta_100 <- load_results("results/PSSM_results_100.txt")
 PSSM_beta_150 <- load_results("results/PSSM_results_150.txt")
 PSSM_beta_200 <- load_results("results/PSSM_results_200.txt")
-```
-
-```{r PSSM beta overlayed wrangling, message=FALSE, include=FALSE}
+#Wrangle for visualisation
 PSSM_beta_50_merge <- PSSM_beta_50 %>% mutate(`Beta` = "50") %>% select(`Number of binders`, `Size`, `PCC`, `Beta`)
 PSSM_beta_70_merge <- PSSM_beta_70 %>% mutate (`Beta` = "70") %>% select(`Number of binders`, `Size`, `PCC`, `Beta`)
 PSSM_beta_100_merge <- PSSM_beta_100 %>% mutate (`Beta` = "100") %>% select(`Number of binders`, `Size`, `PCC`, `Beta`)
@@ -166,7 +153,7 @@ PSSM_merge <- PSSM_merge_list %>% reduce(full_join)
 
 From the graphs, PCC performance between beta values is minimal.
 
-```{r PSSM beta overlayed vis no binders, echo=FALSE, message=FALSE}
+```{r PSSM beta overlayed vis no binders, fig.height = 4, fig.width = 5.5, echo=FALSE, message=FALSE}
 ggplot(data = PSSM_merge,
     mapping = 
       aes(x = `Number of binders`,
@@ -183,7 +170,7 @@ ggplot(data = PSSM_merge,
   scale_y_continuous(breaks = c(0.0, 0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9))
 ```
 
-```{r PSSM beta overlayed wrangling vis size, echo=FALSE, message=FALSE}
+```{r PSSM beta overlayed wrangling vis size, fig.height = 4, fig.width = 5.5, echo=FALSE, message=FALSE}
 ggplot(data = PSSM_merge,
     mapping = 
       aes(x = `Size`,
@@ -200,29 +187,15 @@ ggplot(data = PSSM_merge,
   scale_y_continuous(breaks = c(0.0, 0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9))
 ```
 
-# SMM
+**Due to beta not having any significant impact on performance, beta = 100 was arbitrarily selected for the final comparison.**
 
-## SMM: Gradient descent
+# 4) Stabilization Matrix Method (SMM)
+We have assessed two implementations of the stabilization matrix method: Gradient Descent, and Monte Carlo. However for MC, no optimisations were made, due to long execution times, paired with low early-onset performance. Therefore, the initially run values are selected for the final comparison
 
-**Lambda = 0.01, epsilon = 0.05, epochs = 100 (doesn't make a difference).**</br> ***Lambda = 1 gave optimum results, so those values are used in the final comparison***
+### 4.1 Optimising lambda
 
-```{r SMM data wrangling, include=FALSE}
-SMM_GD_original <- load_results("results/SMM_results.txt")
-```
-
-```{r SMM PCC vs no. binders, echo=FALSE, message=FALSE, warning=FALSE}
-pcc_binder_plot(SMM_GD_original,title="SMM (Gradient descent) PCC vs Number of binders")
-ggsave("./plots/SMM_GD_PCC_binders.png", width = 5.5, height = 4)
-```
-
-```{r SMM PCC vs Size, echo=FALSE}
-pcc_size_plot(SMM_GD_original,title="SMM (Gradient descent) PCC vs Size")
-ggsave("./plots/SMM_GD_size.png", width = 5.5, height = 4)
-```
-
-### Optimising lambda
-
-```{r SMM GD vary lambda data wrangling, message=FALSE, include=FALSE}
+```{r Load & Wrangle SMM results, message=FALSE, include=FALSE}
+SMM_GD_original <- load_results("./results/SMM_results.txt")
 SMM_GD_l_001 <- load_results("results/SMM_results_0.01.txt") %>% mutate(`Lambda` = "0.01") %>% select(`Number of binders`, `Size`, `PCC`, `Lambda`)
 SMM_GD_l_01 <- load_results("results/SMM_results_0.1.txt") %>% mutate(`Lambda` = "0.1") %>% select(`Number of binders`, `Size`, `PCC`, `Lambda`)
 SMM_GD_l_1 <- load_results("results/SMM_results_1.txt") %>% mutate(`Lambda` = "1") %>% select(`Number of binders`, `Size`, `PCC`, `Lambda`)
@@ -231,9 +204,11 @@ SMM_GD_l_10 <- load_results("results/SMM_results_10.txt") %>% mutate(`Lambda` = 
 
 SMM_GD_l_list <- list(SMM_GD_l_001, SMM_GD_l_01, SMM_GD_l_1, SMM_GD_l_5, SMM_GD_l_10)
 SMM_GD_l_merge <- SMM_GD_l_list %>% reduce(full_join)
+
+MC_original <- load_results("./results/MC_results.txt")
 ```
 
-```{r SMM GD vary lambda overlay PCC vs Number of Binders, echo=FALSE}
+```{r SMM GD vary lambda overlay PCC vs Number of Binders, echo=FALSE, fig.height=3.5, fig.width=5, message=FALSE, warning=FALSE}
 ggplot(data = SMM_GD_l_merge,
     mapping = 
       aes(x = `Number of binders`,
@@ -248,9 +223,11 @@ ggplot(data = SMM_GD_l_merge,
           subtitle = "Varying lambda (Cost function)") +
   scale_x_continuous(breaks = seq(0, 1200, by = 100)) +
   scale_y_continuous(breaks = c(0.0, 0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9))
+
+ggsave('./plots/SMM_GD_lambda_binders.png', width = 5.5, height = 4)
 ```
 
-```{r SMM GD vary lambda overlay PCC vs Size, echo=FALSE}
+```{r SMM GD vary lambda overlay PCC vs Size, echo=FALSE, fig.height=3.5, fig.width=4.5, message=FALSE, warning=FALSE}
 ggplot(data = SMM_GD_l_merge,
     mapping = 
       aes(x = `Size`,
@@ -265,11 +242,15 @@ ggplot(data = SMM_GD_l_merge,
           subtitle = "Varying lambda (Cost function)") +
   scale_x_continuous(breaks = seq(0, 3500, by = 500)) +
   scale_y_continuous(breaks = c(0.0, 0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9))
+
+ggsave('./plots/SMM_GD_lambda_size.png', width = 5.5, height = 4)
 ```
 
-### Assessment of lambda
+\newpage
 
-1 has best overall performance - by graph, and it has highest average. </br>
+### 4.2 Assessment of lambda
+
+Lambda = 1 has best overall performance - by graph, and it has highest average. </br>
 
 ```{r average lambda PCC, echo=FALSE}
 SMM_GD_l_001 %>% select(`PCC`) %>% summarise(`Lambda = 0.01 mean PCC` = mean(PCC))
@@ -279,111 +260,60 @@ SMM_GD_l_5 %>% select(`PCC`) %>% summarise(`Lambda = 5 mean PCC` = mean(PCC))
 SMM_GD_l_10 %>% select(`PCC`) %>% summarise(`Lambda = 10 mean PCC` = mean(PCC))
 ```
 
-```{=html}
-<!-- This this last section was an attempt to run with increased number of epochs (100 -> 1000), @ lambda = 1. The results was exactly the same - evidenced by the fact that a composite graph simply overlayed the points over each other, and the average PCC was identical. 
-The ideal would have been to vary epsilon instead, but we declined partially due to time constraints, and due to the fact that even with increased performance, most likely it wouldn't be able to match ANN.  -->
-```
-```{r SMM GD l 1 i 1000, eval=FALSE, include=FALSE}
+\newpage
+
+### 4.3 Optimising Epochs
+This this last optimisation section was an attempt to run with increased number of epochs (100 -> 1000), @ lambda = 1 (the previously established optimal lambda parameter). The results were exactly the same - evidenced by the fact that a composite graph simply overlayed the points over each other, and the average PCC was identical. <br>
+The ideal would have been to vary epsilon instead, but we declined, due to time constraints.
+
+```{r Load Wrangle SMM GD l 1 i 1000 results, include=FALSE}
 SMM_GD_l_1_i_1000 <- load_results("results/SMM_gd_i_1000_l_1.txt")
-```
 
-```{r SMM_GD optimised PCC vs Number of binders, eval=FALSE, include=FALSE}
-pcc_binder_plot(SMM_GD_l_1_i_1000, NULL) + ggtitle(label = "SMM GD PCC vs Number of binders", subtitle = "Lambda = 1, Epochs = 1000")
-```
+SMM_GD_l_1_i_1000_merge <- SMM_GD_l_1_i_1000 %>% mutate (`Parameters` = "epochs = 1000") %>% select(`Number of binders`, `Size`, `PCC`, `Parameters`)
 
-```{r SMM_GD optimised PCC vs Size, eval=FALSE, include=FALSE}
-pcc_size_plot(SMM_GD_l_1_i_1000, NULL) + ggtitle(label = "SMM GD PCC vs Size", subtitle = "Lambda = 1, Epochs = 1000")
-```
-
-```{r SMM_GD optimised PCC mean, eval=FALSE, include=FALSE}
-SMM_GD_l_1_i_1000 %>% select(`PCC`) %>% summarise(`Lambda = 1, epochs = 1000 mean PCC` = mean(PCC))
-```
-
-```{r SMM_GD plot, eval=FALSE, include=FALSE}
-
-SMM_GD_l_1_i_1000_merge <- SMM_GD_l_1_i_1000 %>% mutate (`Parameters` = "l = 1, i = 1000") %>% select(`Number of binders`, `Size`, `PCC`, `Parameters`)
-
-SMM_GD_original_merge <- SMM_GD_l_1 %>% mutate (`Parameters` = "l = 1, i  = 100") %>% select(`Number of binders`, `Size`, `PCC`, `Parameters`)
+SMM_GD_original_merge <- SMM_GD_l_1 %>% mutate (`Parameters` = "epochs = 100") %>% select(`Number of binders`, `Size`, `PCC`, `Parameters`)
 
 SMM_GD_overlay_plot <- full_join(SMM_GD_l_1_i_1000_merge, SMM_GD_original_merge)
+```
 
-pcc_binder_plot_vanilla(SMM_GD_overlay_plot, NULL) + ggtitle(label = "SMM GD PCC vs Number of binders", subtitle = "Epochs 100 and 1000 overlayed")
-
-pcc_size_plot_vanilla(SMM_GD_overlay_plot, NULL) + ggtitle(label = "SMM GD PCC vs Size", subtitle = "Epochs 100 and 1000 overlayed")
-
+```{r Visualise SMM GD l 1 i 1000 results, echo=FALSE}
 SMM_GD_overlay_plot %>% 
   ggplot(
     mapping = 
       aes(
         x = `Number of binders`,
         y = `PCC`,
-        colour = `Parameters`)) + 
-  geom_point()
+        colour = `Parameters`)) +
+    ggtitle(label = "SMM (Gradient descent) PCC vs Number of binders",
+          subtitle = "Varying number of epochs @ lambda = 1") +
+    theme_classic() +
+    scale_color_brewer(palette = "Set1") +
+    geom_point(alpha=0.5)
+
+ggsave('./plots/SMM_GD_epochs_binders.png', width = 5.5, height = 4)
 ```
 
-## SMM: Monte Carlo
 
-**Lambda = 0.01, Epochs = 1000 ; no optimisations made**
+**Due to the lack of difference between epochs, we arbitrarily selected epochs = 100 as our 'optimal'**
 
-```{r MC data wrangling, include=FALSE}
-MC_original <- load_results("results/MC_results.txt") #%>% View()
-```
 
-```{r MC PCC vs no. binders, echo=FALSE}
-pcc_binder_plot_vanilla(MC_original,title="SMM (Monte Carlo) PCC vs Number of binders") +
-  scale_x_continuous(breaks = seq(0, 1200, by = 100)) +
-  scale_y_continuous(breaks = c(0.0, 0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9))
-ggsave("./plots/SMM_MC_PCC_binders.png", width = 5.5, height = 4)
-```
+\newpage
 
-```{r MC PCC vs Size, echo=FALSE}
-pcc_size_plot_vanilla(MC_original,title="SMM (Monte Carlo) PCC vs Size")  +
-  scale_x_continuous(breaks = seq(0, 3500, by = 500)) +
-  scale_y_continuous(breaks = c(0.0, 0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9))
-ggsave("./plots/SMM_MC_PCC_size.png", width = 5.5, height = 4)
-```
-
-# ANN
-
-**Originally run with BLOSUM encoding - sparse coding was later found to be inferior, so the final comparisons are used with BLOSUM encoding**
-
-```{r ANN data wrangling, include=FALSE, echo=FALSE}
-ANN_original <- load_results("results/ANN_results.txt")
-```
-
-```{r ANN PCC vs no. binders, echo=FALSE}
-pcc_binder_plot(ANN_original,title="ANN PCC vs Number of binders")
-ggsave("./plots/ANN_PCC_binder.png", width = 5.5, height = 4)
-```
-
-```{r ANN PCC vs Size, echo=FALSE}
-pcc_size_plot(ANN_original,title="ANN PCC vs Size")
-ggsave("./plots/ANN_PCC_size.png", width= 5.5, height = 4)
-```
-
-## BLOSUM vs Sparse encoding
-
-```{r ANN sparse encoding data wrangling, include=FALSE}
+# 5) Artificial Neural Network (ANN)
+```{r Load & Wrangle ANN sparse/BLOSUM encoding results, message=FALSE, warning=FALSE, include=FALSE}
+#Load results
 ANN_sparse <- load_results("results/ANN_sp_results_project.txt")
-```
-
-<!-- Had separate graphs at first, decided to go with composite graph. -->
-
-```{r ANN sparse encoding PCC vs Number of binders, include=FALSE}
-# pcc_binder_plot(ANN_sparse, title = "ANN (sparse encoding) PCC vs Number of binders")
-```
-
-```{r ANN sparse encoding PCC vs Size, include=FALSE}
-# pcc_size_plot(ANN_sparse, title = "ANN (sparse encoding) PCC vs Size")
-```
-
-```{r ANN BLOSUM vs Sparse wrangling for vis, message=FALSE, include=FALSE}
-ANN_original_merge <- ANN_original %>% mutate(`Encoding` = "BLOSUM") %>% select(`Number of binders`, `Size`, `PCC`, `Encoding`)
+ANN_BLOSUM <- load_results("results/ANN_results.txt")
+#Wrangle for data visualisation
+ANN_BLOSUM_merge <- ANN_BLOSUM %>% mutate(`Encoding` = "BLOSUM") %>% select(`Number of binders`, `Size`, `PCC`, `Encoding`)
 ANN_sparse_merge <- ANN_sparse %>% mutate(`Encoding` = "Sparse") %>% select(`Number of binders`, `Size`, `PCC`, `Encoding`)
-ANN_merge <- full_join(ANN_original_merge, ANN_sparse_merge)
+ANN_merge <- full_join(ANN_BLOSUM_merge, ANN_sparse_merge)
 ```
 
-```{r ANN overlay no binders, echo=FALSE}
+## 5.1 BLOSUM vs Sparse encoding
+For ANN, there is the option of running with two parameters: sparse, or BLOSUM encoding. Here, we assess which option leads to the best results. 
+
+```{r ANN overlay no binders, echo=FALSE, fig.height=4, fig.width=5.5, message=FALSE, warning=FALSE}
 ggplot(data = ANN_merge,
     mapping = 
       aes(x = `Number of binders`,
@@ -397,9 +327,11 @@ ggplot(data = ANN_merge,
           subtitle = "BLOSUM encoding vs Sparse encoding") +
   scale_x_continuous(breaks = seq(0, 1200, by = 100)) +
   scale_y_continuous(breaks = c(0.0, 0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9))
+
+ggsave('./plots/ANN_BLOSUM_vs_Sparse_binders.png', width = 5.5, height = 4)
 ```
 
-```{r ANN overlay size, echo=FALSE}
+```{r ANN overlay size, echo=FALSE, fig.height=4, fig.width=5.5, message=FALSE, warning=FALSE}
 ggplot(data = ANN_merge,
     mapping = 
       aes(x = `Size`,
@@ -413,52 +345,64 @@ ggplot(data = ANN_merge,
           subtitle = "BLOSUM encoding vs Sparse encoding") +
   scale_x_continuous(breaks = seq(0, 3500, by = 500)) +
   scale_y_continuous(breaks = c(0.0, 0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9))
+
+ggsave('./plots/ANN_BLOSUM_vs_Sparse_size.png', width = 5.5, height = 4)
 ```
 
-```{r Average BLOSUM vs sparse}
-ANN_original %>% select(PCC) %>% summarise(`BLOSUM mean PCC` = mean(PCC)) %>% round(3)
+While it is apparent from the graph that BLOSUM encoding outperforms sparse encoding, the mean performances also support this.
+
+```{r Average BLOSUM vs sparse, echo=FALSE}
+ANN_BLOSUM %>% select(PCC) %>% summarise(`BLOSUM mean PCC` = mean(PCC)) %>% round(3)
 ANN_sparse %>% select(PCC) %>% summarise(`sparse mean PCC` = mean(PCC)) %>% round(3)
 ```
 
-# Comparing all results
+\newpage
+
+# 6) Comparison of all algorithms' performance
 
 **ALL results are compared using the optimal parameters.** </br>
 
-**PSSM: beta = 100** - beta had no significant on performance, so we just use the original beta value </br> **SMM GD: lambda = 1, epsilon = 0.05, epochs = 100** - optimised, from lambda 0.01 originally </br> **SMM MC: lambda = 0.01, epochs = 1000** </br> **ANN: BLOSUM encoding** </br>
+* **PSSM**: beta = 100 - beta had no significant on performance, so we just use the original beta value </br> 
 
-## Average PCC
+* **SMM: Gradient descent**: lambda = 1, epsilon = 0.05, epochs = 100 - optimised, from lambda 0.01 originally </br> 
 
+* **SMM: Monte Carlo**: lambda = 0.01, epochs = 1000 </br> 
+
+* **ANN**: BLOSUM encoding </br>
+
+## 6.1 Average PCC
+ANN and SMM Gradient descent are the highest overall performers, whereas PSSM and SMM Monte Carlo are the poorest performers
 ```{r average PCC, echo=FALSE}
 Av_PSSM <- PSSM_original %>% select(PCC) %>% summarise(`PSSM mean PCC` = mean(PCC)) %>% round(3)
 Av_SMM_GD <- SMM_GD_l_1 %>% select(PCC) %>% summarise(`GD mean PCC` = mean(PCC)) %>% round(3)
 Av_MC <- MC_original %>% select(PCC) %>% summarise(`MC mean PCC` = mean(PCC)) %>% round(3)
-Av_ANN <- ANN_original %>% select(PCC) %>% summarise(`ANN mean PCC` = mean(PCC)) %>% round(3)
+Av_ANN <- ANN_BLOSUM %>% select(PCC) %>% summarise(`ANN mean PCC` = mean(PCC)) %>% round(3)
 
 Av_performance <- c(Av_PSSM, Av_SMM_GD, Av_MC, Av_ANN) %>% as_tibble() 
 Av_performance
 ```
 
-## Max PCC
-
+## 6.2 Max PCC
+Interestingly enough, maximum performance shows far less discrepancies.
 ```{r max PCC, echo=FALSE}
 Max_PSSM <- PSSM_original %>% select(PCC) %>% summarise(`PSSM max PCC` = max(PCC)) %>%  round(3)
 Max_SMM_GD <- SMM_GD_l_1 %>% select(PCC) %>% summarise(`GD max PCC` = max(PCC)) %>% round(3)
 Max_MC <- MC_original %>% select(PCC) %>% summarise(`MC max PCC` = max(PCC)) %>% round(3)
-Max_ANN <- ANN_original %>% select(PCC) %>% summarise(`ANN max PCC` = max(PCC)) %>% round(3)
+Max_ANN <- ANN_BLOSUM %>% select(PCC) %>% summarise(`ANN max PCC` = max(PCC)) %>% round(3)
 
 c(Max_PSSM, Max_SMM_GD, Max_MC, Max_ANN) %>% as_tibble()
 ```
 
-## Negative PCC values
+## 6.3 Negative PCC values
 
-```{r number of negative values, include=FALSE}
+```{r number of negative values, echo=FALSE}
 PSSM_original %>% select(`PCC`) %>% mutate(`Negative` = case_when(`PCC`> 0 ~ 0,`PCC`< 0 ~ 1)) %>% summarise(`No. negatives in PSSM` = sum(`Negative`)) 
 SMM_GD_original %>% select(`PCC`) %>% mutate(`Negative` = case_when(`PCC` > 0 ~ 0,`PCC` < 0 ~ 1)) %>% summarise(`No. negatives in GD` = sum(`Negative`))
 MC_original %>% select(`PCC`) %>% mutate(`Negative` = case_when(`PCC` > 0 ~ 0,`PCC` < 0 ~ 1)) %>% summarise(`No. negatives in MC` = sum(`Negative`))
-ANN_original%>% select(`PCC`) %>% mutate(`Negative` = case_when(`PCC` > 0 ~ 0,`PCC`< 0 ~ 1)) %>% summarise(`No. negatives in MC` = sum(`Negative`))
+ANN_BLOSUM %>% select(`PCC`) %>% mutate(`Negative` = case_when(`PCC` > 0 ~ 0,`PCC`< 0 ~ 1)) %>% summarise(`No. negatives in MC` = sum(`Negative`))
 ```
 
-3 negative values in PSSM and MC. </br> Interestingly enough, there are 3 different allele in each case. </br>
+3 negative values in PSSM and MC. </br> Interestingly enough, there are 3 different alleles in each case. </br>
 
 **PSSM**
 
@@ -472,13 +416,15 @@ PSSM_original %>% mutate(`Negative` = case_when(`PCC`> 0 ~ 0,`PCC`< 0 ~ 1)) %>% 
 MC_original %>% mutate(`Negative` = case_when(`PCC` > 0 ~ 0,`PCC` < 0 ~ 1)) %>% filter(`Negative` == 1) %>% select(-`Negative`)
 ```
 
-## Visualise performance for ALL methods
+## 6.4 Visualise performance for ALL methods
+We have used a desntiy plot to visualise all methods' performances. <br> 
+ANN and gradient descent (SMM GD) achieve the highest PCC densities, with more pronounced peaks - indicating a more consistent performance throughout the dataset. PSSM appears to have a median PCC of ~0.45 but drops rapidly past this point and therefore less consistent. Monte Carlo’s performance is the most evenly distributed - and therefore the most unaffected by size - but achieves middling results. <br>
 
-```{r visualise performance, echo=FALSE, message=FALSE, warning=FALSE}
+```{r visualise performance, echo=FALSE, fig.height=4, fig.width=5.5, message=FALSE, warning=FALSE}
 Denseplot_PSSM <- PSSM_original %>% select(`Number of binders`, `Size`, `PCC`) %>% mutate(`Method` = "PSSM")
 Denseplot_SMM_GD <- SMM_GD_l_1 %>% select(`Number of binders`, `Size`, `PCC`) %>% mutate(`Method` = "SMM GD")
 Denseplot_MC <- MC_original %>% select(`Number of binders`, `Size`, `PCC`) %>% mutate(`Method` = "SMM MC")
-Denseplot_ANN <- ANN_original %>% select(`Number of binders`, `Size`, `PCC`) %>% mutate(`Method` = "ANN")
+Denseplot_ANN <- ANN_BLOSUM %>% select(`Number of binders`, `Size`, `PCC`) %>% mutate(`Method` = "ANN")
 
 Denseplot_merge_list <- list(Denseplot_PSSM, Denseplot_SMM_GD, Denseplot_MC, Denseplot_ANN)
 
@@ -495,15 +441,14 @@ Denseplot_MEGA_list %>%
   theme_classic() +
   scale_x_continuous(breaks = seq(0.0, 1.0, by = 0.1)) + 
   ggtitle(label = "PCC performance between all methods") 
-  # scale_color_gradient(low="blue", high="red",
-  #                      breaks=c(0,500,1000,1500,2000,2500,3000),
-  #                      limits=c(0,3000))
+
 ggsave("./plots/Denseplot_all_method.png", width = 5.5, height = 4)
 ```
 
 **Alternate plot (ridgeline)**
-
-```{r ridgeline plot, echo=FALSE}
+This ridgeline plot of the densities helps distinguish the PCC densities. <br> 
+While the shapes are slightly different, they tell a similar story. ANN and SMM GD are have the highest and most consistent performance, and MCC and PSSM having the middling performances.<br>
+```{r ridgeline plot, echo=FALSE, fig.height=4, fig.width=5.5, message=FALSE, warning=FALSE}
 Denseplot_MEGA_list %>% 
   ggplot(mapping = 
            aes(x = `PCC`,
@@ -512,73 +457,69 @@ Denseplot_MEGA_list %>%
   geom_density_ridges(alpha = 0.7) + 
   theme_classic() +
   ggtitle(label = "PCC performance between all methods")
-# + 
-  # scale_fill_viridis(discrete = TRUE)  
 
 ggsave("./plots/Ridgeplot_all_method.png", width = 5.5, height = 4)
 ```
 
-## Visualising PCC vs Size and Number of binders for all methods
+\newpage
 
-```{r echo=FALSE, message=FALSE, warning=FALSE}
+# 7) Meta-study: Affect of dataset size and number of binders on performance
+```{r PCC vs no binders & size export individual plots, include=FALSE}
+pcc_binder_plot(PSSM_original,title="PSSM PCC vs Number of binders")
+ggsave("./plots/PSSM_PCC_binders.png", width = 5.5, height = 4)
+pcc_size_plot(PSSM_original,title="PSSM PCC vs Size")
+ggsave("./plots/PSSM_PCC_size.png", width = 5.5, height = 4)
+pcc_binder_plot(SMM_GD_original,title="SMM (Gradient descent) PCC vs Number of binders")
+ggsave("./plots/SMM_GD_PCC_binders.png", width = 5.5, height = 4)
+pcc_size_plot(SMM_GD_original,title="SMM (Gradient descent) PCC vs Size")
+ggsave("./plots/SMM_GD_size.png", width = 5.5, height = 4)
+pcc_binder_plot(MC_original,title="SMM (Monte Carlo) PCC vs Number of binders")
+ggsave("./plots/SMM_MC_PCC_binders.png", width = 5.5, height = 4)
+pcc_size_plot(MC_original,title="SMM (Monte Carlo) PCC vs Size")
+ggsave("./plots/SMM_MC_PCC_size.png", width = 5.5, height = 4)
+pcc_binder_plot(ANN_BLOSUM,title="ANN PCC vs Number of binders")
+ggsave("./plots/ANN_PCC_binder.png", width = 5.5, height = 4)
+pcc_size_plot(ANN_BLOSUM,title="ANN PCC vs Size")
+ggsave("./plots/ANN_PCC_size.png", width= 5.5, height = 4)
+```
+When plotting the PCC values against number of binders, it appears that a critical threshold ~300 binders must be met, before performance is maintained consistently throughout different numbers of binders between alleles. <br> 
+
+On the other hand, this trend is much less pronounced for a plot of PCC values against dataset size. 
+
+```{r Compare all methods no. binders, echo=FALSE, fig.height=4, fig.width=5.5, message=FALSE, warning=FALSE}
 Denseplot_MEGA_list %>% 
   ggplot(mapping = 
            aes(x = `Number of binders`,
                y = `PCC`,
                colour = `Method`)) + 
-  # geom_density_ridges(alpha = 0.7) +
-  # geom_line(alpha = 0.7) +
   geom_point(size = 2,
              alpha = 0.7) +
-  # geom_line() +
-  # geom_point() + 
   theme_classic() + 
   ggtitle(label = "PCC vs Number of binders for all methods")
 ggsave("./plots/PCC_binders_ALL_methods.png", width = 5.5, height = 4)
 ```
 
-```{r echo=FALSE, message=FALSE, warning=FALSE}
+```{r Compare all methods dataset size, echo=FALSE, fig.height=4, fig.width=5.5, message=FALSE, warning=FALSE}
 Denseplot_MEGA_list %>% 
   ggplot(mapping = 
            aes(x = `Size`,
                y = `PCC`,
                colour = `Method`)) + 
-  # geom_density_ridges(alpha = 0.7) +
   geom_point(size = 2,
              alpha = 0.7) +
-  # geom_line() +
-  # geom_point() + 
   theme_classic() + 
   ggtitle(label = "PCC vs Size for all methods")
 ggsave("./plots/PCC_size_ALL_methods.png", width = 5.5, height = 4)
 ```
-## Exploring the size categories and average performance between them
-```{r EDA Size categories, echo=FALSE}
-Denseplot_MEGA_list %>% 
-  select(c(Method, `Number of binders`, PCC)) %>% 
-  mutate(`Category` = case_when(`Number of binders` < 300 ~ "Small",
-                                300 < `Number of binders` & `Number of binders` < 700 ~ "Medium",
-                                `Number of binders` > 700 ~ "Maximum" )) %>% 
-  select(-`Number of binders`) -> Dense_category 
 
-count %>% 
-mutate(`Category` = case_when(`Number of binders` < 300 ~ "Small",
-                                300 < `Number of binders` & `Number of binders` < 700 ~ "Medium",
-                                `Number of binders` > 700 ~ "Maximum" )) -> Size_categories 
+From these findings, it appears that the number of binders appears to be a more consistent predictor of performance. <br>
 
-Size_categories %>% filter(Category == "Small") #26
-Size_categories %>% filter(Category == "Medium") #8
+For more quantitative findings and insights on this meta-study, please refer to the `ProjectReport.pdf`.
 
-Dense_category %>% filter(Method == "PSSM" & Category == "Small") %>% summarise(`PSSM small` = mean(PCC))
-Dense_category %>% filter(Method == "PSSM" & Category == "Medium") %>% summarise(`PSSM medium` = mean(PCC))
+In addition, graphs for PCC vs number of binders stratified against size (and vice versa) were plotted - example: <br>
 
-Dense_category %>% filter(Method == "SMM GD" & Category == "Small") %>% summarise(`SMM GD small` = mean(PCC))
-Dense_category %>% filter(Method == "SMM GD" & Category == "Medium") %>% summarise(`SMM GD medium` = mean(PCC))
-
-Dense_category %>% filter(Method == "SMM MC" & Category == "Small") %>% summarise(`SMM MC small` = mean(PCC))
-Dense_category %>% filter(Method == "SMM MC" & Category == "Medium") %>% summarise(`SMM MC medium` = mean(PCC))
-
-Dense_category %>% filter(Method == "ANN" & Category == "Small") %>% summarise(`ANN small` = mean(PCC))
-Dense_category %>% filter(Method == "ANN" & Category == "Medium") %>% summarise(`ANN medium` = mean(PCC))
-
+```{r example plot, fig.width=5.5, fig.height=4, message=FALSE, warning=FALSE, echo=FALSE, }
+pcc_size_plot(ANN_BLOSUM,title="ANN PCC vs Size")
 ```
+
+For the sake of preserving space, the rest of them have not been included in this report. However they are featured and discussed in in the `ProjectReport.pdf`, and high quality exports for all methods are in the `plots` directory. 
